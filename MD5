@@ -1,0 +1,14 @@
+62508ca04b67dcc69e88702e471d146d *DESCRIPTION
+58d5744f8ddd021bfab894c2de84dcb8 *LICENSE
+8aad28501bf1631b07a756e37f189160 *NAMESPACE
+a2da75e977e3f77b2321b965dbfbb0ba *R/tropr.R
+3743132d8e618ebcd55b51cab55fcb70 *README.md
+128a7535b45c56f7a573b5e2e1d8c814 *build/vignette.rds
+a22eb4c2af79492eaca65bc0dde31df2 *inst/doc/quickstart.R
+f15a1d89c946d20b5daad394e7e9b69a *inst/doc/quickstart.Rmd
+14d0e0f01446b9ec6c53f0a1d0901326 *inst/doc/quickstart.html
+535ba290ed95780ca80a092a2f6c3767 *man/as.data.frame.tropr.content.Rd
+06a41f4775db89f77441acc295cda4a7 *man/trope_content.Rd
+84d9bf8a87ce1d88656ee6279054d690 *tests/testthat.R
+240d9adde2ac44f816d3ce8a14fc503f *tests/testthat/test-tropr.R
+f15a1d89c946d20b5daad394e7e9b69a *vignettes/quickstart.Rmd
