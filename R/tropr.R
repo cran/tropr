@@ -1,4 +1,4 @@
-#' Get TV Trope content
+#' Get TV Tropes content
 #'
 #' You can use \code{trope_content} with TV Tropes URL to get its content,
 #' and \code{as.data.frame()} converts the content to \code{data.frame}
@@ -13,7 +13,9 @@
 #' library(tropr)
 #'
 #' .url <- "http://tvtropes.org/pmwiki/pmwiki.php/Main/SenseiChan"
+#' \dontrun{
 #' content <- trope_content(.url)
+#' }
 trope_content <- function(.url) {
   doc <- xml2::read_html(.url)
 
@@ -38,10 +40,12 @@ trope_content <- function(.url) {
     stop("Failed to find tvtrope content")
   }
 
-  structure(target_node, class = "tropr.content")
+  structure(list(node = target_node,
+                 url = .url),
+            class = "tropr.content")
 }
 
-#' Convert TV Trope content to data frame
+#' Convert TV Tropes content to data frame
 #'
 #' @param x \code{tropr.content} object
 #' @param stringsAsFactors logical: should the character vector be converted to
@@ -55,21 +59,27 @@ trope_content <- function(.url) {
 #' @examples
 #' library(tropr)
 #'
-#' # Use any TV Trope URL that you analyses
+#' # Use any TV Tropes page url that you analyses
 #' .url <- "http://tvtropes.org/pmwiki/pmwiki.php/Main/SenseiChan"
 #'
+#' \dontrun{
 #' content <- trope_content(.url)
 #' .df <- as.data.frame(content)
+#' }
 as.data.frame.tropr.content <- function(x,
-                                ...,
-                                stringsAsFactors = default.stringsAsFactors()) {
-  content <- x
-  category_name = "main"
+                          ...,
+                          stringsAsFactors = default.stringsAsFactors()) {
+  stopifnot(inherits(x, "tropr.content"))
+
+  content <- x$node
+  parent_url <- x$url
+  category_name <- "main"
 
   class(content) <- "xml_nodeset"
-  ret <- data.frame(matrix(vector(), 0, 3,
-                           dimnames = list(c(),
-                                           c("category", "trope", "link"))),
+  ret <- data.frame(category = as.character(),
+                    trope = as.character(),
+                    link = as.character(),
+                    parent = as.character(),
                     stringsAsFactors = stringsAsFactors, ...)
 
   # Find the latest level
@@ -95,7 +105,8 @@ as.data.frame.tropr.content <- function(x,
           ret <- rbind(ret,
                        data.frame(category = category_name,
                                   trope = basename(res["href"]),
-                                  link = res["href"]))
+                                  link = res["href"],
+                                  parent = basename(parent_url)))
         }
       }
 
@@ -107,7 +118,9 @@ as.data.frame.tropr.content <- function(x,
       ret <- rbind(ret,
                    data.frame(category = category_name,
                               trope = basename(res["href"]),
-                              link = res["href"]))
+                              link = res["href"],
+                              parent = basename(parent_url)))
+
     }
 
     # Change category name with folder label
@@ -131,12 +144,90 @@ as.data.frame.tropr.content <- function(x,
           ret <- rbind(ret,
                        data.frame(category = category_name,
                                   trope = basename(res["href"]),
-                                  link = res["href"]))
+                                  link = res["href"],
+                                  parent = basename(parent_url)))
         }
       }
     }
   }
 
   rownames(ret) <- NULL
+  ret
+}
+
+#' Get TV Tropes page history
+#'
+#' @param .url TV Tropes page url
+#' @param stringsAsFactors logical: should the character vector be converted to
+#'   a factor?
+#' @return \code{data.frame} time-series data with edit counters
+#' @importFrom xml2 xml_attrs
+#' @importFrom magrittr %>%
+#' @importFrom rvest html_children html_text
+#' @importFrom utils tail
+#' @export
+#' @examples
+#' library(tropr)
+#'
+#' .url <- "http://tvtropes.org/pmwiki/pmwiki.php/Characters/LittleWitchAcademia"
+#' \dontrun{
+#' hist_content <- trope_history(.url)
+#' }
+trope_history <- function(.url,
+                          stringsAsFactors = default.stringsAsFactors()) {
+
+  .url_elms <- strsplit(.url, "/")[[1]]
+
+  hist_url <- paste0("http://tvtropes.org/pmwiki/article_history.php?article=",
+                     paste(tail(.url_elms, 2), collapse = "."),
+                     "&more=t")
+  x <- trope_content(hist_url)
+  stopifnot(inherits(x, "tropr.content"))
+
+  content <- x$node
+  parent_url <- x$url
+  class(content) <- "xml_nodeset"
+  nodes <- html_children(content)
+
+  # TODO: Add a column for lines of change information
+  ret <- data.frame(matrix(vector(), 0, 3,
+                           dimnames = list(c(),
+                                           c("datetime", "editor", "count"))),
+                    stringsAsFactors = stringsAsFactors)
+
+  for (i in 1:length(nodes)) {
+    node <- nodes[i]
+    res <- xml_attrs(nodes[i])[[1]]
+    if (res["class"] == "panel panel-default no-padding item-history") {
+      edit_info <- html_children(nodes[i])[1] %>%
+                      html_text %>% strsplit("  ")
+      edit_info <- edit_info[[1]]
+      edit_info <- strsplit(edit_info[1], " ")[[1]]
+      if (length(edit_info) != 6) {
+        stop("TV Tropes changed their format: it is time to catch that.")
+      }
+
+      # TODO: Find a better way than this
+      if (grepl("st", edit_info[1])) {
+        .th <- "st"
+      } else if (grepl("nd", edit_info[1])) {
+        .th <- "nd"
+      } else if (grepl("rd", edit_info[1])) {
+        .th <- "rd"
+      } else if (grepl("th", edit_info[1])) {
+        .th <- "th"
+      } else {
+        stop("TV Tropes changed their format: it is time to catch that.")
+      }
+
+      .datetime <- strptime(paste(edit_info[1:5], collapse = " "),
+                            paste0("%d", .th ," %b '%y %I:%M:%S %p"))
+      .editor <- edit_info[6]
+      ret <- rbind(ret, data.frame(datetime = .datetime,
+                                   editor = .editor,
+                                   count = 1))
+    }
+  }
+
   ret
 }

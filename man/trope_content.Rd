@@ -2,7 +2,7 @@
 % Please edit documentation in R/tropr.R
 \name{trope_content}
 \alias{trope_content}
-\title{Get TV Trope content}
+\title{Get TV Tropes content}
 \usage{
 trope_content(.url)
 }
@@ -21,5 +21,7 @@ and \code{as.data.frame()} converts the content to \code{data.frame}
 library(tropr)
 
 .url <- "http://tvtropes.org/pmwiki/pmwiki.php/Main/SenseiChan"
+\dontrun{
 content <- trope_content(.url)
+}
 }
